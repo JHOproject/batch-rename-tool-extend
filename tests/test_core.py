@@ -34,7 +34,7 @@ def test_execute_and_undo(tmp_path):
     done, errors = execute_plan(plan, history_path)
     assert done == 1 and not errors
     assert not old.exists() and new.read_bytes() == b"PDF-contents"
-    assert json.loads(history_path.read_text())['transactions'][0]['entries'][0]['original'] == str(old)
+    assert json.loads(history_path.read_text(encoding="utf-8"))['transactions'][0]['entries'][0]['original'] == str(old)
     reverted, errors = undo_latest(history_path)
     assert reverted == 1 and not errors
     assert old.read_bytes() == b"PDF-contents" and not new.exists()
