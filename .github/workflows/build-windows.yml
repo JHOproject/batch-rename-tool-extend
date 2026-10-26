@@ -1,43 +1,57 @@
-
 name: Build Windows EXE
 
 on:
   workflow_dispatch:
   push:
     branches: [main, master]
+    paths:
+      - "**/*.py"
+      - "requirements.txt"
+      - ".github/workflows/build-windows.yml"
 
 permissions:
   contents: read
 
 jobs:
   build:
+    name: Build and test Windows x64
     runs-on: windows-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python 3.11 x64
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
           architecture: x64
+          cache: pip
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt "pyinstaller>=6.10,<7" pytest
 
-      - name: Run tests
+      - name: Run automated tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -q tests
 
-      - name: Build EXE
+      - name: Package portable EXE
         run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name BatchRenameTool main.py
 
-      - name: Upload EXE
+      - name: Verify EXE exists and print SHA256
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/BatchRenameTool.exe")) { throw "EXE not generated" }
+          if ((Get-Item "dist/BatchRenameTool.exe").Length -lt 1000000) { throw "Unexpectedly small EXE" }
+          Get-FileHash "dist/BatchRenameTool.exe" -Algorithm SHA256 | Format-List
+
+      - name: Upload Windows EXE
         uses: actions/upload-artifact@v4
         with:
           name: BatchRenameTool-Windows-x64
           path: dist/BatchRenameTool.exe
+          if-no-files-found: error
+          retention-days: 30
